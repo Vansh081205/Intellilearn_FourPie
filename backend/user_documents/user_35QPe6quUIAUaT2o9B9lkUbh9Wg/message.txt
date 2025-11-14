@@ -1,0 +1,1398 @@
+import { memo, useRef, useMemo, useState, useEffect, createContext, useContext } from 'react';
+import { motion, useInView } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { Button, IconButton, Tooltip, Container, Typography, Box } from '@mui/material';
+import { ThemeProvider as MuiThemeProvider, createTheme } from '@mui/material/styles';
+import { CssBaseline } from '@mui/material';
+import { 
+  GraduationCap, 
+  BarChart3, 
+  BookOpen, 
+  Handshake, 
+  Trophy, 
+  Users, 
+  Zap,
+  Rocket,
+  Moon,
+  Sun
+} from 'lucide-react';
+
+// ============================================================================
+// THEME CONFIGURATION
+// ============================================================================
+
+const PRIMARY_BLUE = '#2563eb';
+const SECONDARY_BLUE = '#3b82f6';
+const ACCENT_INDIGO = '#4f46e5';
+
+const getDesignTokens = (mode) => ({
+    palette: {
+        mode,
+        ...(mode === 'light'
+            ? {
+                primary: {
+                    main: PRIMARY_BLUE,
+                    light: '#60a5fa',
+                    dark: '#1d4ed8',
+                    contrastText: '#ffffff',
+                },
+                secondary: {
+                    main: SECONDARY_BLUE,
+                    light: '#93c5fd',
+                    dark: '#1e40af',
+                    contrastText: '#ffffff',
+                },
+                background: {
+                    default: '#f9fafb',
+                    paper: '#ffffff',
+                },
+                text: {
+                    primary: '#111827',
+                    secondary: '#6b7280',
+                },
+                info: {
+                    main: ACCENT_INDIGO,
+                    light: '#818cf8',
+                    dark: '#3730a3',
+                },
+                success: {
+                    main: '#10b981',
+                    light: '#34d399',
+                    dark: '#059669',
+                },
+                warning: {
+                    main: '#f59e0b',
+                    light: '#fbbf24',
+                    dark: '#d97706',
+                },
+                error: {
+                    main: '#ef4444',
+                    light: '#f87171',
+                    dark: '#dc2626',
+                },
+                divider: '#e5e7eb',
+            }
+            : {
+                primary: {
+                    main: '#3b82f6',
+                    light: '#60a5fa',
+                    dark: '#2563eb',
+                    contrastText: '#ffffff',
+                },
+                secondary: {
+                    main: '#60a5fa',
+                    light: '#93c5fd',
+                    dark: '#3b82f6',
+                    contrastText: '#ffffff',
+                },
+                background: {
+                    default: '#0f172a',
+                    paper: '#1e293b',
+                },
+                text: {
+                    primary: '#f1f5f9',
+                    secondary: '#94a3b8',
+                },
+                info: {
+                    main: '#6366f1',
+                    light: '#818cf8',
+                    dark: '#4f46e5',
+                },
+                success: {
+                    main: '#10b981',
+                    light: '#34d399',
+                    dark: '#059669',
+                },
+                warning: {
+                    main: '#f59e0b',
+                    light: '#fbbf24',
+                    dark: '#d97706',
+                },
+                error: {
+                    main: '#ef4444',
+                    light: '#f87171',
+                    dark: '#dc2626',
+                },
+                divider: '#334155',
+            }),
+    },
+    typography: {
+        fontFamily: '"Inter var", "Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+        h1: {
+            fontSize: '2.5rem',
+            fontWeight: 700,
+            lineHeight: 1.2,
+        },
+        h2: {
+            fontSize: '2rem',
+            fontWeight: 600,
+            lineHeight: 1.3,
+        },
+        h3: {
+            fontSize: '1.75rem',
+            fontWeight: 600,
+            lineHeight: 1.3,
+        },
+        h4: {
+            fontSize: '1.5rem',
+            fontWeight: 600,
+            lineHeight: 1.4,
+        },
+        h5: {
+            fontSize: '1.25rem',
+            fontWeight: 600,
+            lineHeight: 1.4,
+        },
+        h6: {
+            fontSize: '1rem',
+            fontWeight: 600,
+            lineHeight: 1.5,
+        },
+        button: {
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            textTransform: 'none',
+            letterSpacing: '0.02em',
+        },
+    },
+    shape: {
+        borderRadius: 12,
+    },
+    components: {
+        MuiButton: {
+            styleOverrides: {
+                root: {
+                    borderRadius: 8,
+                    padding: '8px 16px',
+                    fontWeight: 600,
+                    boxShadow: 'none',
+                    '&:hover': {
+                        boxShadow: 'none',
+                    },
+                },
+                contained: {
+                    '&:hover': {
+                        transform: 'translateY(-1px)',
+                        transition: 'all 0.2s',
+                    },
+                },
+            },
+        },
+        MuiCard: {
+            styleOverrides: {
+                root: {
+                    borderRadius: 12,
+                    boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
+                },
+            },
+        },
+        MuiPaper: {
+            styleOverrides: {
+                root: {
+                    borderRadius: 12,
+                },
+            },
+        },
+    },
+});
+
+// ============================================================================
+// THEME CONTEXT
+// ============================================================================
+
+const ThemeContext = createContext(undefined);
+
+const ThemeProvider = ({ children }) => {
+    // Backend functionality from first prompt - localStorage with system preference
+    const [mode, setMode] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('darkMode');
+            if (saved !== null) {
+                return JSON.parse(saved) ? 'dark' : 'light';
+            }
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        return 'light';
+    });
+
+    // Apply to document.documentElement (from first prompt)
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            if (mode === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            localStorage.setItem('darkMode', mode === 'dark');
+        }
+    }, [mode]);
+
+    const toggleTheme = () => {
+        setMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
+    };
+
+    const theme = useMemo(() => createTheme(getDesignTokens(mode)), [mode]);
+
+    return (
+        <ThemeContext.Provider value={{ mode, toggleTheme }}>
+            <MuiThemeProvider theme={theme}>
+                <CssBaseline />
+                {children}
+            </MuiThemeProvider>
+        </ThemeContext.Provider>
+    );
+};
+
+const useThemeContext = () => {
+    const context = useContext(ThemeContext);
+    if (!context) {
+        throw new Error('useTheme must be used within ThemeProvider');
+    }
+    return context;
+};
+
+// ============================================================================
+// HERO SECTION COMPONENT
+// ============================================================================
+
+const HeroSection = memo(() => {
+    const navigate = useNavigate();
+    const { mode, toggleTheme } = useThemeContext();
+    const [scrollY, setScrollY] = useState(0);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            setScrollY(window.scrollY);
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    const opacity = Math.max(0, 1 - scrollY / 500);
+    const scale = Math.max(0.8, 1 - scrollY / 2000);
+
+    return (
+        <div className="relative h-screen w-full overflow-hidden">
+            {/* Background Image with Parallax */}
+            <motion.div
+                className="absolute inset-0"
+                style={{
+                    backgroundImage: 'url(https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=2000&q=80)',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    y: scrollY * 0.5,
+                }}
+            />
+
+            {/* Gradient Overlay */}
+            <div
+                className="absolute inset-0"
+                style={{
+                    background: mode === 'dark'
+                        ? 'linear-gradient(to bottom right, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.85), rgba(51, 65, 85, 0.8))'
+                        : 'linear-gradient(to bottom right, rgba(29, 78, 216, 0.8), rgba(37, 99, 235, 0.7), rgba(96, 165, 250, 0.6))'
+                }}
+            />
+
+            {/* Theme Toggle Button */}
+            <motion.div
+                className="absolute top-6 right-6 z-50"
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{
+                    type: 'spring',
+                    stiffness: 200,
+                    damping: 15,
+                    delay: 0.5,
+                }}
+            >
+                <Tooltip title={`Switch to ${mode === 'light' ? 'dark' : 'light'} mode`} arrow>
+                    <IconButton
+                        onClick={toggleTheme}
+                        component={motion.button}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        sx={{
+                            width: 56,
+                            height: 56,
+                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                            backdropFilter: 'blur(10px)',
+                            border: '2px solid rgba(255, 255, 255, 0.2)',
+                            color: 'white',
+                            '&:hover': {
+                                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                            },
+                            transition: 'all 0.3s ease',
+                        }}
+                    >
+                        {mode === 'light' ? (
+                            <Moon className="w-7 h-7" />
+                        ) : (
+                            <Sun className="w-7 h-7" />
+                        )}
+                    </IconButton>
+                </Tooltip>
+            </motion.div>
+
+            {/* Animated Particles Background */}
+            <div className="absolute inset-0 pointer-events-none">
+                {[...Array(20)].map((_, i) => (
+                    <motion.div
+                        key={i}
+                        className="absolute w-2 h-2 bg-white rounded-full"
+                        initial={{
+                            x: typeof window !== 'undefined' ? Math.random() * window.innerWidth : Math.random() * 1000,
+                            y: typeof window !== 'undefined' ? Math.random() * window.innerHeight : Math.random() * 1000,
+                            opacity: 0,
+                            scale: 0,
+                        }}
+                        animate={{
+                            y: [null, typeof window !== 'undefined' ? Math.random() * window.innerHeight : Math.random() * 1000],
+                            opacity: [0, Math.random() * 0.5, Math.random() * 0.5],
+                            scale: [0, 1, 1],
+                        }}
+                        transition={{
+                            duration: 10 + Math.random() * 20,
+                            repeat: Infinity,
+                            ease: 'linear',
+                            delay: Math.random() * 2,
+                        }}
+                    />
+                ))}
+            </div>
+
+            {/* Content */}
+            <motion.div
+                className="relative h-full flex flex-col items-center justify-center text-white px-4"
+                style={{ opacity, scale }}
+            >
+                <motion.div className="text-center">
+                    {/* Logo/Icon */}
+                    <motion.div
+                        initial={{ scale: 0, rotate: -180 }}
+                        animate={{
+                            scale: 1,
+                            rotate: 0,
+                        }}
+                        transition={{
+                            type: 'spring',
+                            stiffness: 200,
+                            damping: 12,
+                            delay: 0.2,
+                        }}
+                        className="mb-8"
+                    >
+                        <motion.div
+                            className="inline-block p-6 bg-white/10 backdrop-blur-lg rounded-3xl border border-white/20"
+                            whileHover={{
+                                scale: 1.15,
+                                transition: { duration: 0.6 }
+                            }}
+                        >
+                            <GraduationCap className="w-20 h-20" />
+                        </motion.div>
+                    </motion.div>
+
+                    {/* Title */}
+                    <motion.h1
+                        className="text-6xl md:text-8xl lg:text-9xl font-bold mb-6"
+                        initial={{ opacity: 0, scale: 0.5, y: 50 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        transition={{
+                            type: 'spring',
+                            stiffness: 100,
+                            damping: 15,
+                            delay: 0.5,
+                        }}
+                        style={{
+                            background: 'linear-gradient(to right, #ffffff, #e0f2fe, #ffffff)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            backgroundClip: 'text',
+                        }}
+                    >
+                        IntelliLearn+
+                    </motion.h1>
+
+                    {/* Subtitle */}
+                    <motion.p
+                        className="text-xl md:text-2xl lg:text-3xl text-gray-200 mb-12 max-w-3xl mx-auto"
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                            type: 'spring',
+                            stiffness: 100,
+                            damping: 15,
+                            delay: 0.8,
+                        }}
+                    >
+                        Revolutionizing Education with AI-Powered Learning
+                    </motion.p>
+
+                    {/* CTA Buttons */}
+                    <motion.div
+                        className="flex flex-col sm:flex-row gap-4 justify-center items-center"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 1.1 }}
+                    >
+                        <motion.div
+                            initial={{ scale: 0, y: 50 }}
+                            animate={{ scale: 1, y: 0 }}
+                            transition={{
+                                type: 'spring',
+                                stiffness: 150,
+                                damping: 12,
+                                delay: 1.2,
+                            }}
+                        >
+                            <Button
+                                variant="contained"
+                                size="large"
+                                onClick={() => navigate('/role-selection')}
+                                component={motion.button}
+                                whileHover={{
+                                    scale: 1.1,
+                                    y: -5,
+                                    boxShadow: '0 20px 50px rgba(29, 78, 216, 0.7)',
+                                }}
+                                whileTap={{ scale: 0.95 }}
+                                sx={{
+                                    px: 6,
+                                    py: 2,
+                                    fontSize: '1.1rem',
+                                    fontWeight: 600,
+                                    borderRadius: '50px',
+                                    background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
+                                    textTransform: 'none',
+                                    boxShadow: '0 10px 30px rgba(29, 78, 216, 0.4)',
+                                    transition: 'all 0.3s ease',
+                                }}
+                            >
+                                Get Started Free
+                            </Button>
+                        </motion.div>
+
+                        <motion.div
+                            initial={{ scale: 0, y: 50 }}
+                            animate={{ scale: 1, y: 0 }}
+                            transition={{
+                                type: 'spring',
+                                stiffness: 150,
+                                damping: 12,
+                                delay: 1.35,
+                            }}
+                        >
+                            <Button
+                                variant="outlined"
+                                size="large"
+                                onClick={() => navigate('/signin')}
+                                component={motion.button}
+                                whileHover={{
+                                    scale: 1.1,
+                                    y: -5,
+                                    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                                }}
+                                whileTap={{ scale: 0.95 }}
+                                sx={{
+                                    px: 6,
+                                    py: 2,
+                                    fontSize: '1.1rem',
+                                    fontWeight: 600,
+                                    borderRadius: '50px',
+                                    color: 'white',
+                                    borderColor: 'white',
+                                    borderWidth: 2,
+                                    textTransform: 'none',
+                                    transition: 'all 0.3s ease',
+                                }}
+                            >
+                                Sign In
+                            </Button>
+                        </motion.div>
+                    </motion.div>
+                </motion.div>
+
+                {/* Scroll Indicator */}
+                <motion.div
+                    className="absolute bottom-10"
+                    initial={{ opacity: 0, scale: 0, y: -50 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{
+                        type: 'spring',
+                        stiffness: 150,
+                        damping: 15,
+                        delay: 1.8,
+                    }}
+                >
+                    <motion.div
+                        className="flex flex-col items-center gap-2"
+                        animate={{ y: [0, 10, 0] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                    >
+                        <span className="text-white/80 text-sm uppercase tracking-widest">Scroll to explore</span>
+                        <svg
+                            className="w-6 h-6 text-white"
+                            fill="none"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                        </svg>
+                    </motion.div>
+                </motion.div>
+            </motion.div>
+        </div>
+    );
+});
+
+HeroSection.displayName = 'HeroSection';
+
+// ============================================================================
+// FEATURE SECTION COMPONENT
+// ============================================================================
+
+const FeatureSection = memo(({
+    title,
+    description,
+    image,
+    icon: Icon,
+    reverse,
+    index,
+}) => {
+    const ref = useRef(null);
+    const { mode } = useThemeContext();
+
+    const isInView = useInView(ref, {
+        amount: 0.3,
+        margin: '0px 0px -100px 0px',
+    });
+
+    // Memoize all animation variants
+    const containerVariants = useMemo(() => ({
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.2,
+                delayChildren: 0.1,
+            },
+        },
+    }), []);
+
+    const imagePopVariants = useMemo(() => ({
+        hidden: {
+            opacity: 1,
+            scale: 0.7,
+            rotate: reverse ? 10 : -10,
+            x: reverse ? 100 : -100,
+        },
+        visible: {
+            opacity: 1,
+            scale: 1,
+            rotate: 0,
+            x: 0,
+            transition: {
+                type: 'spring',
+                stiffness: 80,
+                damping: 12,
+                mass: 1.5,
+            },
+        },
+    }), [reverse]);
+
+    const textPopVariants = useMemo(() => ({
+        hidden: {
+            opacity: 1,
+            x: reverse ? -80 : 80,
+            y: 30,
+        },
+        visible: {
+            opacity: 1,
+            x: 0,
+            y: 0,
+            transition: {
+                type: 'spring',
+                stiffness: 100,
+                damping: 15,
+            },
+        },
+    }), [reverse]);
+
+    const iconPopVariants = useMemo(() => ({
+        hidden: {
+            scale: 0,
+            rotate: -180,
+        },
+        visible: {
+            scale: 1,
+            rotate: 0,
+            transition: {
+                type: 'spring',
+                stiffness: 200,
+                damping: 10,
+                delay: 0.3,
+            },
+        },
+    }), []);
+
+    const statsPopVariants = useMemo(() => ({
+        hidden: {
+            opacity: 1,
+            scale: 0.5,
+            y: 30,
+        },
+        visible: (custom) => ({
+            opacity: 1,
+            scale: 1,
+            y: 0,
+            transition: {
+                type: 'spring',
+                stiffness: 150,
+                damping: 12,
+                delay: 0.5 + custom * 0.1,
+            },
+        }),
+    }), []);
+
+    const featureNumberVariants = useMemo(() => ({
+        hidden: { scale: 0, rotate: -180 },
+        visible: {
+            scale: 1,
+            rotate: 0,
+            transition: {
+                type: 'spring',
+                stiffness: 200,
+                damping: 15,
+                delay: 0.2,
+            },
+        },
+    }), []);
+
+    const titleVariants = useMemo(() => ({
+        hidden: { opacity: 1, y: 30, scale: 0.9 },
+        visible: {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            transition: {
+                type: 'spring',
+                stiffness: 100,
+                damping: 15,
+                delay: 0.3,
+            },
+        },
+    }), []);
+
+    const descriptionVariants = useMemo(() => ({
+        hidden: { opacity: 1, y: 20 },
+        visible: {
+            opacity: 1,
+            y: 0,
+            transition: {
+                type: 'spring',
+                stiffness: 100,
+                damping: 15,
+                delay: 0.4,
+            },
+        },
+    }), []);
+
+    const sectionBackground = useMemo(() =>
+        index % 2 === 0
+            ? mode === 'dark' ? '#0f172a' : '#f9fafb'
+            : mode === 'dark'
+                ? 'linear-gradient(135deg, #1f2a3a 0%, #2f3e52 20%, #1f2a3a 100%)'
+                : 'linear-gradient(135deg, #f0f4f8 0%, #e0e7ef 20%, #f0f4f8 100%)'
+        , [index, mode]);
+
+    const decorativeGradient = useMemo(() =>
+        'linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%)'
+        , []);
+
+    const featureNumberStyle = useMemo(() => ({
+        backgroundColor: mode === 'dark' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(30, 86, 230, 0.1)',
+        borderColor: PRIMARY_BLUE,
+    }), [mode]);
+
+    const statsCardStyle = useMemo(() => ({
+        backgroundColor: mode === 'dark' ? '#1e293b' : '#ffffff',
+        borderColor: mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+    }), [mode]);
+
+    const statsData = useMemo(() => [
+        { value: '10K+', label: 'Active Users' },
+        { value: '98%', label: 'Satisfaction' },
+    ], []);
+
+    const animationState = isInView ? 'visible' : 'hidden';
+
+    return (
+        <Box
+            ref={ref}
+            sx={{
+                py: { xs: 8, md: 12, lg: 16 },
+                position: 'relative',
+                overflow: 'hidden',
+                background: sectionBackground,
+            }}
+        >
+            <Container maxWidth="lg">
+                <motion.div
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate={animationState}
+                >
+                    <div className={`flex flex-col ${reverse ? 'lg:flex-row-reverse' : 'lg:flex-row'} items-center gap-8 lg:gap-16`}>
+                        {/* Image Section */}
+                        <motion.div
+                            variants={imagePopVariants}
+                            className="w-full lg:w-1/2"
+                        >
+                            <div className="relative">
+                                {/* Decorative Background */}
+                                <motion.div
+                                    className="absolute -inset-4 rounded-3xl opacity-20"
+                                    style={{ background: decorativeGradient }}
+                                    initial={{ scale: 0, rotate: -45 }}
+                                    animate={isInView ? {
+                                        scale: 1,
+                                        rotate: 0,
+                                    } : {
+                                        scale: 0,
+                                        rotate: -45,
+                                    }}
+                                    transition={{
+                                        type: 'spring',
+                                        stiffness: 60,
+                                        damping: 15,
+                                    }}
+                                >
+                                    <motion.div
+                                        className="w-full h-full rounded-3xl"
+                                        style={{ background: decorativeGradient }}
+                                        animate={isInView ? {
+                                            scale: [1, 1.05, 1],
+                                            rotate: [0, 5, 0, -5, 0],
+                                        } : {}}
+                                        transition={{
+                                            duration: 8,
+                                            repeat: Infinity,
+                                            ease: 'easeInOut',
+                                        }}
+                                    />
+                                </motion.div>
+
+                                {/* Main Image */}
+                                <motion.div
+                                    className="relative rounded-2xl overflow-hidden shadow-2xl"
+                                    whileHover={{
+                                        scale: 1.05,
+                                        rotate: reverse ? 2 : -2,
+                                        transition: { duration: 0.3 }
+                                    }}
+                                >
+                                    <img
+                                        src={image}
+                                        alt={title}
+                                        className="w-full h-auto object-cover"
+                                        style={{ aspectRatio: '16/10' }}
+                                        loading="lazy"
+                                    />
+
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+
+                                    {/* Floating Icon */}
+                                    <motion.div
+                                        className="absolute top-4 right-4 rounded-full p-4 shadow-lg"
+                                        style={{ backgroundColor: mode === 'dark' ? '#1e293b' : '#ffffff' }}
+                                        variants={iconPopVariants}
+                                        whileHover={{
+                                            scale: 1.2,
+                                            transition: { duration: 0.5 }
+                                        }}
+                                    >
+                                        <Icon className="w-8 h-8" style={{ color: PRIMARY_BLUE }} />
+                                    </motion.div>
+                                </motion.div>
+
+                                {/* Animated Ring Effect */}
+                                {isInView && (
+                                    <>
+                                        <motion.div
+                                            className="absolute inset-0 rounded-2xl border-4 border-blue-500 pointer-events-none"
+                                            initial={{ scale: 0.9, opacity: 1 }}
+                                            animate={{
+                                                scale: [0.9, 1.15, 1],
+                                                opacity: [0, 0.6, 0],
+                                            }}
+                                            transition={{
+                                                duration: 1.5,
+                                                delay: 0.5,
+                                                ease: 'easeOut',
+                                            }}
+                                        />
+
+                                        <motion.div
+                                            className="absolute inset-0 rounded-2xl border-2 border-blue-400 pointer-events-none"
+                                            initial={{ scale: 0.95, opacity: 1 }}
+                                            animate={{
+                                                scale: [0.95, 1.1, 1],
+                                                opacity: [0, 0.4, 0],
+                                            }}
+                                            transition={{
+                                                duration: 1.5,
+                                                delay: 0.7,
+                                                ease: 'easeOut',
+                                            }}
+                                        />
+                                    </>
+                                )}
+                            </div>
+                        </motion.div>
+
+                        {/* Text Section */}
+                        <motion.div
+                            variants={textPopVariants}
+                            className="w-full lg:w-1/2"
+                        >
+                            {/* Feature Number */}
+                            <motion.div
+                                className="inline-block mb-4"
+                                variants={featureNumberVariants}
+                                whileHover={{
+                                    scale: 1.15,
+                                    rotate: 5,
+                                    transition: { duration: 0.3 }
+                                }}
+                            >
+                                <div
+                                    className="flex items-center gap-3 px-4 py-2 rounded-full border"
+                                    style={featureNumberStyle}
+                                >
+                                    <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+                                        0{index + 1}
+                                    </span>
+                                    <span
+                                        className="text-sm font-semibold uppercase tracking-wider"
+                                        style={{ color: mode === 'dark' ? '#94a3b8' : '#6b7280' }}
+                                    >
+                                        Feature
+                                    </span>
+                                </div>
+                            </motion.div>
+
+                            {/* Title */}
+                            <motion.div variants={titleVariants}>
+                                <Typography
+                                    variant="h3"
+                                    component="h2"
+                                    sx={{
+                                        fontSize: { xs: '2rem', md: '2.5rem', lg: '3rem' },
+                                        fontWeight: 800,
+                                        mb: 3,
+                                        background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+                                        WebkitBackgroundClip: 'text',
+                                        WebkitTextFillColor: 'transparent',
+                                        backgroundClip: 'text',
+                                    }}
+                                >
+                                    {title}
+                                </Typography>
+                            </motion.div>
+
+                            {/* Description */}
+                            <motion.div variants={descriptionVariants}>
+                                <Typography
+                                    variant="body1"
+                                    sx={{
+                                        fontSize: { xs: '1rem', md: '1.125rem' },
+                                        lineHeight: 1.8,
+                                        color: mode === 'dark' ? '#94a3b8' : '#6b7280',
+                                        mb: 4,
+                                    }}
+                                >
+                                    {description}
+                                </Typography>
+                            </motion.div>
+
+                            {/* Stats */}
+                            <div className="grid grid-cols-2 gap-4 mt-6">
+                                {statsData.map((stat, statIndex) => (
+                                    <motion.div
+                                        key={statIndex}
+                                        custom={statIndex}
+                                        variants={statsPopVariants}
+                                        initial="hidden"
+                                        animate={animationState}
+                                        className="p-4 rounded-xl shadow-md border"
+                                        style={statsCardStyle}
+                                        whileHover={{
+                                            scale: 1.1,
+                                            y: -8,
+                                            boxShadow: mode === 'dark'
+                                                ? '0 20px 40px rgba(59, 130, 246, 0.3)'
+                                                : '0 20px 40px rgba(0,0,0,0.15)',
+                                            transition: {
+                                                type: 'spring',
+                                                stiffness: 300,
+                                                damping: 15,
+                                            }
+                                        }}
+                                    >
+                                        <div
+                                            className={`text-3xl font-bold bg-gradient-to-r ${statIndex === 0
+                                                ? 'from-blue-600 to-blue-800'
+                                                : 'from-blue-400 to-blue-600'
+                                                } bg-clip-text text-transparent`}
+                                        >
+                                            {stat.value}
+                                        </div>
+                                        <div className="text-sm mt-1" style={{ color: mode === 'dark' ? '#94a3b8' : '#6b7280' }}>
+                                            {stat.label}
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        </motion.div>
+                    </div>
+                </motion.div>
+            </Container>
+
+            {/* Decorative Elements */}
+            <motion.div
+                className="absolute top-1/2 left-0 w-64 h-64 rounded-full opacity-10 pointer-events-none"
+                style={{
+                    background: 'radial-gradient(circle, #3B82F6 0%, transparent 70%)',
+                    filter: 'blur(60px)',
+                }}
+                initial={{ scale: 0, x: -100 }}
+                animate={animationState}
+            >
+                <motion.div
+                    className="w-full h-full rounded-full"
+                    style={{
+                        background: 'radial-gradient(circle, #3B82F6 0%, transparent 70%)',
+                    }}
+                    animate={isInView ? {
+                        scale: [1, 1.2, 1],
+                        opacity: [0.5, 0.8, 0.5],
+                    } : {}}
+                    transition={{
+                        duration: 6,
+                        repeat: Infinity,
+                        ease: 'easeInOut',
+                    }}
+                />
+            </motion.div>
+
+            <motion.div
+                className="absolute bottom-1/4 right-0 w-48 h-48 rounded-full opacity-10 pointer-events-none"
+                style={{
+                    background: 'radial-gradient(circle, #1E3A8A 0%, transparent 70%)',
+                    filter: 'blur(50px)',
+                }}
+                initial={{ scale: 0, x: 100 }}
+                animate={animationState}
+            >
+                <motion.div
+                    className="w-full h-full rounded-full"
+                    style={{
+                        background: 'radial-gradient(circle, #1E3A8A 0%, transparent 70%)',
+                    }}
+                    animate={isInView ? {
+                        scale: [1, 1.3, 1],
+                        opacity: [0.5, 0.7, 0.5],
+                    } : {}}
+                    transition={{
+                        duration: 7,
+                        repeat: Infinity,
+                        ease: 'easeInOut',
+                        delay: 1,
+                    }}
+                />
+            </motion.div>
+        </Box>
+    );
+}, (prevProps, nextProps) => {
+    return (
+        prevProps.title === nextProps.title &&
+        prevProps.description === nextProps.description &&
+        prevProps.image === nextProps.image &&
+        prevProps.icon === nextProps.icon &&
+        prevProps.reverse === nextProps.reverse &&
+        prevProps.index === nextProps.index
+    );
+});
+
+FeatureSection.displayName = 'FeatureSection';
+
+// ============================================================================
+// CTA SECTION COMPONENT
+// ============================================================================
+
+const CTASection = memo(() => {
+    const navigate = useNavigate();
+    const ref = useRef(null);
+
+    const isInView = useInView(ref, {
+        amount: 0.3,
+        margin: '0px 0px -100px 0px',
+    });
+
+    const containerVariants = useMemo(() => ({
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.15,
+                delayChildren: 0.2,
+            },
+        },
+    }), []);
+
+    const popUpVariants = useMemo(() => ({
+        hidden: {
+            opacity: 0,
+            scale: 0.5,
+            y: 50,
+        },
+        visible: {
+            opacity: 1,
+            scale: 1,
+            y: 0,
+            transition: {
+                type: 'spring',
+                stiffness: 120,
+                damping: 12,
+            },
+        },
+    }), []);
+
+    const iconVariants = useMemo(() => ({
+        hidden: {
+            scale: 0,
+            rotate: -360,
+        },
+        visible: {
+            scale: 1,
+            rotate: 0,
+            transition: {
+                type: 'spring',
+                stiffness: 200,
+                damping: 15,
+            },
+        },
+    }), []);
+
+    const buttonVariants = useMemo(() => ({
+        hidden: {
+            opacity: 0,
+            scale: 0.8,
+            y: 30,
+        },
+        visible: (custom) => ({
+            opacity: 1,
+            scale: 1,
+            y: 0,
+            transition: {
+                type: 'spring',
+                stiffness: 150,
+                damping: 12,
+                delay: custom * 0.1,
+            },
+        }),
+    }), []);
+
+    const particleVariants = useMemo(() => ({
+        hidden: { scale: 0, opacity: 0 },
+        visible: {
+            scale: [0, 1.2, 1],
+            opacity: [0, 0.6, 0.3],
+            y: [0, -30, 0],
+        },
+    }), []);
+
+    const animationState = isInView ? 'visible' : 'hidden';
+
+    return (
+        <div ref={ref} className="relative py-20 lg:py-32 overflow-hidden">
+            {/* Background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-950 via-blue-800 to-cyan-700" />
+
+            {/* Mesh Pattern */}
+            <div className="absolute inset-0 opacity-20">
+                <div className="absolute inset-0" style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+                }} />
+            </div>
+
+            {/* Floating Shapes */}
+            {[...Array(15)].map((_, i) => (
+                <motion.div
+                    key={i}
+                    className="absolute w-4 h-4 bg-white/30 rounded-full pointer-events-none"
+                    style={{
+                        left: `${Math.random() * 100}%`,
+                        top: `${Math.random() * 100}%`,
+                    }}
+                    variants={particleVariants}
+                    initial="hidden"
+                    animate={isInView ? {
+                        ...particleVariants.visible,
+                        transition: {
+                            duration: 3 + Math.random() * 2,
+                            repeat: Infinity,
+                            delay: Math.random() * 2,
+                        }
+                    } : 'hidden'}
+                />
+            ))}
+
+            <Container maxWidth="lg" className="relative z-10">
+                <motion.div
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate={animationState}
+                    className="text-center text-white"
+                >
+                    {/* Icon */}
+                    <motion.div variants={iconVariants} className="mb-8">
+                        <motion.div
+                            className="inline-block p-6 bg-white/10 backdrop-blur-lg rounded-full border border-white/20"
+                            whileHover={{
+                                scale: 1.15,
+                                rotate: [0, 180, 0],
+                                transition: { duration: 0.6 }
+                            }}
+                        >
+                            <Rocket className="w-16 h-16" />
+                        </motion.div>
+                    </motion.div>
+
+                    {/* Heading */}
+                    <motion.div variants={popUpVariants}>
+                        <Typography
+                            variant="h2"
+                            component="h2"
+                            sx={{
+                                fontSize: { xs: '2rem', md: '3rem', lg: '3.5rem' },
+                                fontWeight: 800,
+                                mb: 3,
+                                color: 'white',
+                            }}
+                        >
+                            Ready to Transform Your Learning?
+                        </Typography>
+                    </motion.div>
+
+                    {/* Subheading */}
+                    <motion.div variants={popUpVariants}>
+                        <Typography
+                            variant="h6"
+                            sx={{
+                                fontSize: { xs: '1rem', md: '1.25rem' },
+                                mb: 6,
+                                color: 'rgba(255, 255, 255, 0.9)',
+                                maxWidth: '800px',
+                                mx: 'auto',
+                            }}
+                        >
+                            Join thousands of learners who are already advancing their careers with IntelliLearn+.
+                            Start your journey today with our AI-powered platform.
+                        </Typography>
+                    </motion.div>
+
+                    {/* Buttons */}
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                        <motion.div custom={0} variants={buttonVariants} initial="hidden" animate={animationState}>
+                            <Button
+                                variant="contained"
+                                size="large"
+                                onClick={() => navigate('/role-selection')}
+                                component={motion.button}
+                                whileHover={{
+                                    scale: 1.08,
+                                    y: -5,
+                                    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+                                }}
+                                whileTap={{ scale: 0.95 }}
+                                sx={{
+                                    px: 8,
+                                    py: 3,
+                                    fontSize: '1.2rem',
+                                    fontWeight: 700,
+                                    borderRadius: '50px',
+                                    background: 'white',
+                                    color: '#1e3a8a',
+                                    textTransform: 'none',
+                                    boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)',
+                                    transition: 'all 0.3s ease',
+                                }}
+                            >
+                                Start Learning Now
+                            </Button>
+                        </motion.div>
+
+                        <motion.div custom={1} variants={buttonVariants} initial="hidden" animate={animationState}>
+                            <Button
+                                variant="outlined"
+                                size="large"
+                                onClick={() => navigate('/signin')}
+                                component={motion.button}
+                                whileHover={{
+                                    scale: 1.08,
+                                    y: -5,
+                                    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                                }}
+                                whileTap={{ scale: 0.95 }}
+                                sx={{
+                                    px: 8,
+                                    py: 3,
+                                    fontSize: '1.2rem',
+                                    fontWeight: 700,
+                                    borderRadius: '50px',
+                                    color: 'white',
+                                    borderColor: 'white',
+                                    borderWidth: 2,
+                                    textTransform: 'none',
+                                    transition: 'all 0.3s ease',
+                                }}
+                            >
+                                Explore Features
+                            </Button>
+                        </motion.div>
+                    </div>
+                </motion.div>
+            </Container>
+        </div>
+    );
+}, () => true);
+
+CTASection.displayName = 'CTASection';
+
+// ============================================================================
+// MAIN LANDING PAGE COMPONENT
+// ============================================================================
+
+const LandingPage = memo(() => {
+    const { mode } = useThemeContext();
+    
+    // Scroll progress tracking (from first prompt)
+    const [scrollProgress, setScrollProgress] = useState(0);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            const windowHeight = window.innerHeight;
+            const documentHeight = document.documentElement.scrollHeight - windowHeight;
+            const scrolled = window.scrollY;
+            const progress = (scrolled / documentHeight) * 100;
+            setScrollProgress(progress);
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    // Memoize features data
+    const features = useMemo(() => [
+        {
+            id: 1,
+            title: "AI-Powered Learning",
+            description: "Experience personalized learning paths powered by advanced artificial intelligence. Our smart algorithms adapt to your learning style and pace, ensuring optimal knowledge retention.",
+            image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1200&q=80",
+            icon: Zap,
+            reverse: false,
+        },
+        {
+            id: 2,
+            title: "Interactive Courses",
+            description: "Engage with dynamic, interactive content that keeps you motivated. From video lectures to hands-on projects, every course is designed to maximize engagement and practical learning.",
+            image: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1200&q=80",
+            icon: BookOpen,
+            reverse: true,
+        },
+        {
+            id: 3,
+            title: "Real-Time Analytics",
+            description: "Track your progress with comprehensive analytics dashboards. Visualize your learning journey, identify strengths and weaknesses, and celebrate milestones along the way.",
+            image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80",
+            icon: BarChart3,
+            reverse: false,
+        },
+        {
+            id: 4,
+            title: "Expert Mentorship",
+            description: "Connect with industry experts and mentors who guide you through your learning journey. Get personalized feedback, career advice, and insider knowledge from professionals.",
+            image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=1200&q=80",
+            icon: Users,
+            reverse: true,
+        },
+        {
+            id: 5,
+            title: "Collaborative Learning",
+            description: "Join a vibrant community of learners worldwide. Participate in group projects, discussion forums, and peer reviews to enhance your understanding through collaboration.",
+            image: "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=1200&q=80",
+            icon: Handshake,
+            reverse: false,
+        },
+        {
+            id: 6,
+            title: "Industry Certifications",
+            description: "Earn recognized certifications that boost your career. Our courses are designed in partnership with leading companies to ensure you gain skills that matter in the job market.",
+            image: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=1200&q=80",
+            icon: Trophy,
+            reverse: true,
+        },
+    ], []);
+
+    return (
+        <div
+            className="relative w-full overflow-hidden"
+            style={{ backgroundColor: mode === 'dark' ? '#0f172a' : '#f9fafb' }}
+        >
+            {/* Scroll Progress Bar */}
+            <div
+                className="fixed top-0 left-0 h-1 bg-gradient-to-r from-blue-600 via-cyan-500 to-indigo-500 z-50 transition-all duration-300"
+                style={{ width: `${scrollProgress}%` }}
+            />
+
+            {/* Hero Section */}
+            <HeroSection />
+
+            {/* Features Sections */}
+            {features.map((feature, index) => (
+                <FeatureSection
+                    key={feature.id}
+                    title={feature.title}
+                    description={feature.description}
+                    image={feature.image}
+                    icon={feature.icon}
+                    reverse={feature.reverse}
+                    index={index}
+                />
+            ))}
+
+            {/* CTA Section */}
+            <CTASection />
+        </div>
+    );
+});
+
+LandingPage.displayName = 'LandingPage';
+
+// ============================================================================
+// MAIN EXPORT WITH THEME PROVIDER WRAPPER
+// ============================================================================
+
+export default function CompleteLandingPage() {
+    return (
+        <ThemeProvider>
+            <LandingPage />
+        </ThemeProvider>
+    );
+}
